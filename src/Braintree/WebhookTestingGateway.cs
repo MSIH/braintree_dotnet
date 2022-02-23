@@ -44,12 +44,16 @@ namespace Braintree
 
         private string SubjectSampleXml(WebhookKind kind, string id)
         {
+            // NEXT_UNDER_MAJOR_VERSION
+            // Convert to switch statement
             if (kind == WebhookKind.SUB_MERCHANT_ACCOUNT_APPROVED) {
                 return MerchantAccountApprovedSampleXml(id);
             } else if (kind == WebhookKind.SUB_MERCHANT_ACCOUNT_DECLINED) {
                 return MerchantAccountDeclinedSampleXml(id);
             } else if (kind == WebhookKind.TRANSACTION_DISBURSED) {
                 return TransactionDisbursedSampleXml(id);
+            } else if (kind == WebhookKind.TRANSACTION_REVIEWED) {
+                return TransactionReviewedSampleXml(id);
             } else if (kind == WebhookKind.TRANSACTION_SETTLED) {
                 return TransactionSettledSampleXml(id);
             } else if (kind == WebhookKind.TRANSACTION_SETTLEMENT_DECLINED) {
@@ -98,10 +102,16 @@ namespace Braintree
                 return PaymentMethodRevokedByCustomerSampleXml(id);
             } else if (kind == WebhookKind.GRANTED_PAYMENT_METHOD_REVOKED) {
                 return GrantedPaymentMethodRevokedSampleXml(id);
-            }  else if (kind == WebhookKind.LOCAL_PAYMENT_COMPLETED) {
+            } else if (kind == WebhookKind.LOCAL_PAYMENT_COMPLETED) {
                 return LocalPaymentCompletedSampleXml();
+            } else if (kind == WebhookKind.LOCAL_PAYMENT_EXPIRED) {
+                return LocalPaymentExpiredSampleXml();
+            } else if (kind == WebhookKind.LOCAL_PAYMENT_FUNDED) {
+                return LocalPaymentFundedSampleXml();
             } else if (kind == WebhookKind.LOCAL_PAYMENT_REVERSED) {
                 return LocalPaymentReversedSampleXml();
+            } else if (kind == WebhookKind.PAYMENT_METHOD_CUSTOMER_DATA_UPDATED) {
+                return PaymentMethodCustomerDataUpdatedMetadataSampleXml(id);
             } else {
                 return SubscriptionXml(id);
             }
@@ -177,6 +187,17 @@ namespace Braintree
                     Node("descriptor"),
                     Node("shipping"),
                     Node("subscription")
+            );
+        }
+
+        private string TransactionReviewedSampleXml(string id)
+        {
+            return Node("transaction-review",
+                    Node("transaction-id", "my_id"),
+                    Node("decision", "smart_decision"),
+                    Node("reviewer-email", "hey@girl.com"),
+                    Node("reviewer-note", "I made a smart decision."),
+                    NodeAttr("reviewed-time", TYPE_DATE_TIME, "2019-01-02T00:00:00Z")
             );
         }
 
@@ -535,22 +556,10 @@ namespace Braintree
                     Node("limited-use-order-id", NIL_TRUE, ""),
                     NodeAttr("revoked-at", TYPE_DATE_TIME, "2019-01-02T12:00:00Z")
                 );
-        } 
+        }
 
         private static string GrantedPaymentMethodRevokedSampleXml(string id) {
-            return Node("venmo-account",
-                    NodeAttr("created-at", TYPE_DATE_TIME, "2021-05-05T21:28:37Z"),
-                    NodeAttr("updated-at", TYPE_DATE_TIME, "2021-05-05T21:28:37Z"),
-                    NodeAttr("default", TYPE_BOOLEAN, "true"),
-                    Node("image-url", "https://assets.braintreegateway.com/payment_method_logo/venmo.png?environment=test"),
-                    Node("token", id),
-                    Node("source-description", "Venmo Account: venmojoe"),
-                    Node("username", "venmojoe"),
-                    Node("venmo-user-id", "456"),
-                    NodeAttr("subscriptions", TYPE_ARRAY),
-                    Node("customer-id", "venmo_customer_id"),
-                    Node("global-id", "cGF5bWVudG1ldGhvZF92ZW5tb2FjY291bnQ")
-              );
+            return VenmoAccountSampleXml(id);
         }
 
         private static string LocalPaymentCompletedSampleXml() {
@@ -567,10 +576,66 @@ namespace Braintree
             );
         }
 
+        private static string LocalPaymentExpiredSampleXml() {
+            return Node("local-payment-expired",
+                    Node("payment-id", "a-payment-id"),
+                    Node("payment-context-id", "a-payment-context-id")
+            );
+        }
+
+        private static string LocalPaymentFundedSampleXml() {
+            return Node("local-payment-funded",
+                    Node("payment-id", "a-payment-id"),
+                    Node("payment-context-id", "a-payment-context-id"),
+                    Node("transaction",
+                        Node("id", "1"),
+                        Node("status", "settled"),
+                        Node("amount", "10.00"),
+                        Node("order-id", "order1234")
+                        )
+            );
+        }
+
         private static string LocalPaymentReversedSampleXml() {
             return Node("local-payment-reversed",
                     Node("payment-id", "a-payment-id")
             );
+        }
+
+        private static string PaymentMethodCustomerDataUpdatedMetadataSampleXml(string id) {
+            return Node("payment-method-customer-data-updated-metadata",
+                    Node("token", "TOKEN12345"),
+                    Node("payment-method", VenmoAccountSampleXml(id)),
+                    NodeAttr("datetime-updated", TYPE_DATE_TIME, "2022-01-01T21:28:37Z"),
+                    Node("enriched-customer-data",
+                        Node("fields-updated", TYPE_ARRAY,
+                            Node("item", "username")
+                        ),
+                        Node("profile-data",
+                            Node("first-name", "John"),
+                            Node("last-name", "Doe"),
+                            Node("phone-number", "1231231234"),
+                            Node("email", "john.doe@paypal.com"),
+                            Node("username", "venmo_username")
+                        )
+                    )
+            );
+        }
+
+        private static string VenmoAccountSampleXml(string id) {
+            return Node("venmo-account",
+                    NodeAttr("created-at", TYPE_DATE_TIME, "2021-05-05T21:28:37Z"),
+                    NodeAttr("updated-at", TYPE_DATE_TIME, "2021-05-05T21:28:37Z"),
+                    NodeAttr("default", TYPE_BOOLEAN, "true"),
+                    Node("image-url", "https://assets.braintreegateway.com/payment_method_logo/venmo.png?environment=test"),
+                    Node("token", id),
+                    Node("source-description", "Venmo Account: venmojoe"),
+                    Node("username", "venmojoe"),
+                    Node("venmo-user-id", "456"),
+                    NodeAttr("subscriptions", TYPE_ARRAY),
+                    Node("customer-id", "venmo_customer_id"),
+                    Node("global-id", "cGF5bWVudG1ldGhvZF92ZW5tb2FjY291bnQ")
+              );
         }
 
         private static string Node(string name, params string[] contents) {

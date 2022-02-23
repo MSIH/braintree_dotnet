@@ -8,10 +8,13 @@ namespace Braintree
     public class TransactionCreditCardRequest : BaseCreditCardRequest
     {
         public string Token { get; set; }
+        public PaymentReaderCardDetailsRequest PaymentReaderCardDetails { get; set; }
 
         protected override RequestBuilder BuildRequest(string root)
         {
-            return base.BuildRequest(root).AddElement("token", Token);
+            return base.BuildRequest(root)
+                .AddElement("token", Token)
+                .AddElement("payment-reader-card-details", PaymentReaderCardDetails);
         }
     }
 
@@ -42,6 +45,7 @@ namespace Braintree
         [ObsoleteAttribute("use DeviceData instead", false)]
         public string FraudMerchantId { get; set; }
         public string Channel { get; set; }
+        public string ExchangeRateQuoteId { get; set; }
         public string OrderId { get; set; }
         public string ProductSku { get; set; }
         [ObsoleteAttribute("use TransactionSource instead", false)]
@@ -134,6 +138,7 @@ namespace Braintree
             builder.AddElement("order-id", OrderId);
             builder.AddElement("product-sku", ProductSku);
             builder.AddElement("channel", Channel);
+            builder.AddElement("exchange-rate-quote-id",ExchangeRateQuoteId);
 // Remove this pragma warning when we remove DeviceSessionId, FraudMerchantId, and Recurring.
 // We have this so we can build the SDK without obsolete error messages
 #pragma warning disable 618

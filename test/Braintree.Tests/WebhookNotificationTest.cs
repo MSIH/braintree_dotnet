@@ -377,6 +377,21 @@ namespace Braintree.Tests
         }
 
         [Test]
+        public void SampleNotification_ReturnsANotificationForTraansactionReview()
+        {
+          Dictionary<string, string> sampleNotification = gateway.WebhookTesting.SampleNotification(WebhookKind.TRANSACTION_REVIEWED, "my_id");
+
+          WebhookNotification notification = gateway.WebhookNotification.Parse(sampleNotification["bt_signature"], sampleNotification["bt_payload"]);
+
+          Assert.AreEqual(WebhookKind.TRANSACTION_REVIEWED, notification.Kind);
+          Assert.AreEqual("my_id", notification.TransactionReview.TransactionId);
+          Assert.AreEqual("smart_decision", notification.TransactionReview.Decision);
+          Assert.AreEqual("hey@girl.com", notification.TransactionReview.ReviewerEmail);
+          Assert.AreEqual("I made a smart decision.", notification.TransactionReview.ReviewerNote);
+          Assert.AreEqual(DateTime.Parse("2019-01-02"), notification.TransactionReview.ReviewedTime);
+        }
+
+        [Test]
         public void SampleNotification_ReturnsANotificationForAConnectedMerchantStatusTransitioned()
         {
           Dictionary<string, string> sampleNotification = gateway.WebhookTesting.SampleNotification(WebhookKind.CONNECTED_MERCHANT_STATUS_TRANSITIONED, "my_id");
@@ -662,6 +677,40 @@ namespace Braintree.Tests
         }
 
         [Test]
+        public void SampleNotification_ReturnsANotificationForLocalPaymentExpired()
+        {
+          Dictionary<string, string> sampleNotification = gateway.WebhookTesting.SampleNotification(WebhookKind.LOCAL_PAYMENT_EXPIRED, "my_id");
+
+          WebhookNotification notification = gateway.WebhookNotification.Parse(sampleNotification["bt_signature"], sampleNotification["bt_payload"]);
+
+          Assert.AreEqual(WebhookKind.LOCAL_PAYMENT_EXPIRED, notification.Kind);
+          LocalPaymentExpired localPayment = notification.LocalPaymentExpired;
+
+          Assert.AreEqual("a-payment-id", localPayment.PaymentId);
+          Assert.AreEqual("a-payment-context-id", localPayment.PaymentContextId);
+        }
+
+        [Test]
+        public void SampleNotification_ReturnsANotificationForLocalPaymentFunded()
+        {
+          Dictionary<string, string> sampleNotification = gateway.WebhookTesting.SampleNotification(WebhookKind.LOCAL_PAYMENT_FUNDED, "my_id");
+
+          WebhookNotification notification = gateway.WebhookNotification.Parse(sampleNotification["bt_signature"], sampleNotification["bt_payload"]);
+
+          Assert.AreEqual(WebhookKind.LOCAL_PAYMENT_FUNDED, notification.Kind);
+
+          LocalPaymentFunded localPayment = notification.LocalPaymentFunded;
+          Assert.AreEqual("a-payment-id", localPayment.PaymentId);
+          Assert.AreEqual("a-payment-context-id", localPayment.PaymentContextId);
+
+          Transaction transaction = localPayment.Transaction;
+          Assert.NotNull(transaction);
+          Assert.AreEqual("1", transaction.Id);
+          Assert.AreEqual(TransactionStatus.SETTLED, transaction.Status);
+          Assert.AreEqual("order1234", transaction.OrderId);
+        }
+
+        [Test]
         public void SampleNotification_ReturnsANotificationForLocalPaymentReversed()
         {
           Dictionary<string, string> sampleNotification = gateway.WebhookTesting.SampleNotification(WebhookKind.LOCAL_PAYMENT_REVERSED, "my_id");
@@ -682,6 +731,31 @@ namespace Braintree.Tests
           WebhookNotification notification = gateway.WebhookNotification.Parse(sampleNotification["bt_signature"], sampleNotification["bt_payload"]);
 
           Assert.AreEqual(WebhookKind.CHECK, notification.Kind);
+        }
+
+        [Test]
+        public void SampleNotification_ReturnsAPaymentMethodCustomerDataUpdatedMetadata()
+        {
+          Dictionary<string, string> sampleNotification = gateway.WebhookTesting.SampleNotification(WebhookKind.PAYMENT_METHOD_CUSTOMER_DATA_UPDATED, "");
+
+          WebhookNotification notification = gateway.WebhookNotification.Parse(sampleNotification["bt_signature"], sampleNotification["bt_payload"]);
+
+          Assert.AreEqual(WebhookKind.PAYMENT_METHOD_CUSTOMER_DATA_UPDATED, notification.Kind);
+
+          PaymentMethodCustomerDataUpdatedMetadata paymentMethodCustomerDataUpdatedMetadata = notification.PaymentMethodCustomerDataUpdatedMetadata;
+
+          Assert.AreEqual("TOKEN12345", paymentMethodCustomerDataUpdatedMetadata.Token);
+          Assert.AreEqual("2022-01-01T21:28:37Z", paymentMethodCustomerDataUpdatedMetadata.DateTimeUpdated);
+
+          EnrichedCustomerData enrichedCustomerData = paymentMethodCustomerDataUpdatedMetadata.EnrichedCustomerData;
+          Assert.AreEqual(enrichedCustomerData.FieldsUpdated[0], "username");
+
+          VenmoProfileData  profileData = enrichedCustomerData.ProfileData;
+          Assert.AreEqual("John", profileData.FirstName);
+          Assert.AreEqual("Doe", profileData.LastName);
+          Assert.AreEqual("venmo_username", profileData.Username);
+          Assert.AreEqual("1231231234", profileData.PhoneNumber);
+          Assert.AreEqual("john.doe@paypal.com", profileData.Email);
         }
     }
 }

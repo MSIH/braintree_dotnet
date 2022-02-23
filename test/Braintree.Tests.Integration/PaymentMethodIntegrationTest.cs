@@ -17,6 +17,7 @@ namespace Braintree.Tests.Integration
         private BraintreeGateway gateway;
         private BraintreeGateway partnerMerchantGateway;
         private BraintreeGateway oauthGateway;
+        private BraintreeService service;
 
         [SetUp]
         public void Setup()
@@ -42,6 +43,19 @@ namespace Braintree.Tests.Integration
                 "client_id$development$integration_client_id",
                 "client_secret$development$integration_client_secret"
             );
+        }
+
+        public void FraudProtectionEnterpriseSetup()
+        {
+            gateway = new BraintreeGateway
+            {
+                Environment = Environment.DEVELOPMENT,
+                MerchantId = "fraud_protection_enterprise_integration_merchant_id",
+                PublicKey = "fraud_protection_enterprise_integration_public_key",
+                PrivateKey = "fraud_protection_enterprise_integration_private_key"
+            };
+
+            service = new BraintreeService(gateway.Configuration);
         }
 
         [Test]
@@ -270,6 +284,62 @@ namespace Braintree.Tests.Integration
         }
 
         [Test]
+        public void CreateWithoutSkipAdvancedFraudCheckingIncludesRiskData()
+        {
+            FraudProtectionEnterpriseSetup();
+            string nonce = TestHelper.GenerateUnlockedNonce(gateway);
+            Result<Customer> result = gateway.Customer.Create(new CustomerRequest());
+            Assert.IsTrue(result.IsSuccess());
+
+            PaymentMethodRequest request = new PaymentMethodRequest()
+            {
+                CustomerId = result.Target.Id,
+                PaymentMethodNonce = nonce,
+                Options = new PaymentMethodOptionsRequest()
+                {
+                    SkipAdvancedFraudChecking = false,
+                    VerifyCard = true
+                },
+            };
+            Result<PaymentMethod> paymentMethodResult = gateway.PaymentMethod.Create(request);
+
+            Assert.IsTrue(paymentMethodResult.IsSuccess());
+
+            CreditCard creditCard = (CreditCard) paymentMethodResult.Target;
+            CreditCardVerification verification = creditCard.Verification;
+            Assert.IsNotNull(verification);
+            Assert.IsNotNull(verification.RiskData);
+        }
+
+        [Test]
+        public void CreateWithSkipAdvancedFraudCheckingDoesNotIncludeRiskData()
+        {
+            FraudProtectionEnterpriseSetup();
+            string nonce = TestHelper.GenerateUnlockedNonce(gateway);
+            Result<Customer> result = gateway.Customer.Create(new CustomerRequest());
+            Assert.IsTrue(result.IsSuccess());
+
+            PaymentMethodRequest request = new PaymentMethodRequest()
+            {
+                CustomerId = result.Target.Id,
+                PaymentMethodNonce = nonce,
+                Options = new PaymentMethodOptionsRequest()
+                {
+                    SkipAdvancedFraudChecking = true,
+                    VerifyCard = true
+                },
+            };
+            Result<PaymentMethod> paymentMethodResult = gateway.PaymentMethod.Create(request);
+
+            Assert.IsTrue(paymentMethodResult.IsSuccess());
+
+            CreditCard creditCard = (CreditCard) paymentMethodResult.Target;
+            CreditCardVerification verification = creditCard.Verification;
+            Assert.IsNotNull(verification);
+            Assert.IsNull(verification.RiskData);
+        }
+
+        [Test]
 #if netcore
         public async Task CreateAsync_CreatesCreditCardWithNonce()
 #else
@@ -383,6 +453,15 @@ namespace Braintree.Tests.Integration
             Assert.IsNotNull(applePayCard.PaymentInstrumentName);
             Assert.IsNotNull(applePayCard.SourceDescription);
             Assert.IsNotNull(applePayCard.IsExpired);
+            Assert.IsNotNull(applePayCard.Prepaid);
+            Assert.IsNotNull(applePayCard.Healthcare);
+            Assert.IsNotNull(applePayCard.Debit);
+            Assert.IsNotNull(applePayCard.DurbinRegulated);
+            Assert.IsNotNull(applePayCard.Commercial);
+            Assert.IsNotNull(applePayCard.Payroll);
+            Assert.IsNotNull(applePayCard.IssuingBank);
+            Assert.IsNotNull(applePayCard.CountryOfIssuance);
+            Assert.IsNotNull(applePayCard.ProductId);
             Assert.AreEqual(result.Target.Id, applePayCard.CustomerId);
         }
 
@@ -420,6 +499,15 @@ namespace Braintree.Tests.Integration
             Assert.IsNotNull(androidPayCard.UpdatedAt);
             Assert.IsNotNull(androidPayCard.Subscriptions);
             Assert.IsFalse(androidPayCard.IsNetworkTokenized);
+            Assert.IsNotNull(androidPayCard.Prepaid);
+            Assert.IsNotNull(androidPayCard.Healthcare);
+            Assert.IsNotNull(androidPayCard.Debit);
+            Assert.IsNotNull(androidPayCard.DurbinRegulated);
+            Assert.IsNotNull(androidPayCard.Commercial);
+            Assert.IsNotNull(androidPayCard.Payroll);
+            Assert.IsNotNull(androidPayCard.IssuingBank);
+            Assert.IsNotNull(androidPayCard.CountryOfIssuance);
+            Assert.IsNotNull(androidPayCard.ProductId);
         }
 
         [Test]
@@ -456,6 +544,15 @@ namespace Braintree.Tests.Integration
             Assert.IsNotNull(androidPayCard.UpdatedAt);
             Assert.IsNotNull(androidPayCard.Subscriptions);
             Assert.IsTrue(androidPayCard.IsNetworkTokenized);
+            Assert.IsNotNull(androidPayCard.Prepaid);
+            Assert.IsNotNull(androidPayCard.Healthcare);
+            Assert.IsNotNull(androidPayCard.Debit);
+            Assert.IsNotNull(androidPayCard.DurbinRegulated);
+            Assert.IsNotNull(androidPayCard.Commercial);
+            Assert.IsNotNull(androidPayCard.Payroll);
+            Assert.IsNotNull(androidPayCard.IssuingBank);
+            Assert.IsNotNull(androidPayCard.CountryOfIssuance);
+            Assert.IsNotNull(androidPayCard.ProductId);
         }
 
         [Test]
@@ -1202,6 +1299,72 @@ namespace Braintree.Tests.Integration
                 });
 
             Assert.IsTrue(updateResult.IsSuccess());
+        }
+
+        [Test]
+        public void UpdateWithoutSkipAdvancedFraudCheckingIncludesRiskData()
+        {
+            FraudProtectionEnterpriseSetup();
+            Customer customer = gateway.Customer.Create(new CustomerRequest()).Target;
+            CreditCardRequest request = new CreditCardRequest
+            {
+                CustomerId = customer.Id,
+                CardholderName = "John Doe",
+                CVV = "123",
+                Number = "4111111111111111",
+                ExpirationDate = "05/12",
+            };
+            CreditCard originalCreditCard = gateway.CreditCard.Create(request).Target;
+
+            PaymentMethodRequest paymentMethodUpdateRequest = new PaymentMethodRequest()
+            {
+                ExpirationDate = "05/22",
+                Options = new PaymentMethodOptionsRequest
+                {
+                    VerifyCard = true,
+                    SkipAdvancedFraudChecking = false
+                },
+            };
+            Result<PaymentMethod> paymentMethodResult = gateway.PaymentMethod.Update(originalCreditCard.Token, paymentMethodUpdateRequest);
+            Assert.IsTrue(paymentMethodResult.IsSuccess());
+
+            CreditCard creditCard = (CreditCard) paymentMethodResult.Target;
+            CreditCardVerification verification = creditCard.Verification;
+            Assert.IsNotNull(verification);
+            Assert.IsNotNull(verification.RiskData);
+        }
+
+        [Test]
+        public void UpdateWithSkipAdvancedFraudCheckingDoesNotIncludeRiskData()
+        {
+            FraudProtectionEnterpriseSetup();
+            Customer customer = gateway.Customer.Create(new CustomerRequest()).Target;
+            CreditCardRequest request = new CreditCardRequest
+            {
+                CustomerId = customer.Id,
+                CardholderName = "John Doe",
+                CVV = "123",
+                Number = "4111111111111111",
+                ExpirationDate = "05/12",
+            };
+            CreditCard originalCreditCard = gateway.CreditCard.Create(request).Target;
+
+            PaymentMethodRequest paymentMethodUpdateRequest = new PaymentMethodRequest()
+            {
+                ExpirationDate = "05/22",
+                Options = new PaymentMethodOptionsRequest
+                {
+                    VerifyCard = true,
+                    SkipAdvancedFraudChecking = true
+                },
+            };
+            Result<PaymentMethod> paymentMethodResult = gateway.PaymentMethod.Update(originalCreditCard.Token, paymentMethodUpdateRequest);
+            Assert.IsTrue(paymentMethodResult.IsSuccess());
+
+            CreditCard creditCard = (CreditCard) paymentMethodResult.Target;
+            CreditCardVerification verification = creditCard.Verification;
+            Assert.IsNotNull(verification);
+            Assert.IsNull(verification.RiskData);
         }
 
         [Test]
